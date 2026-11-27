@@ -4,8 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Qualidade Elecnor · Sistema de Torque Online</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{--navy:#002e56;--navy2:#004b83;--green:#168b73;--mint:#d9f0e9;--bg:#f2f5f9;--ink:#143451;--muted:#74818c;--border:#e5eaf0;--orange:#b96b20;--red:#be4d4b;--brand-blue:#00529b;--brand-orange:#f58220}
 *{box-sizing:border-box}
@@ -165,24 +164,107 @@ textarea{width:100%;resize:vertical;min-height:90px;border:1px solid #d5e1e7;bor
 .conta-info{display:flex;align-items:center;gap:16px}
 .conta-info h3{margin:0 0 4px;font-size:17px;color:#0b315f}
 .conta-info p{font-size:12px;color:#516d7e}
-.conta-stats{display:grid;grid-template-columns:repeat(3,minmax(140px,1fr));gap:14px;margin-bottom:24px}
-.conta-stat{padding:16px 18px;border:1px solid #dce6f2;border-radius:8px;background:#fff}
-.conta-stat span{display:block;font-size:11px;color:#657d91;font-weight:600}
-.conta-stat strong{display:block;font-size:26px;color:#004b83;margin-top:6px}
-.auth-box{max-width:460px;margin:10px auto;padding:26px;border:1px solid #dce5f0;border-radius:10px;background:#fbfdff}
-.auth-box h3{margin:0 0 8px;color:#0b315f;font-size:18px}
-.auth-box p{font-size:12px;margin-bottom:16px}
-.auth-box label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;color:#365d7c;margin-bottom:14px}
-.auth-box input{border:1px solid #cedced;border-radius:6px;padding:10px;font:inherit;color:#183a56}
-.auth-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+#authGate{display:grid;grid-template-columns:minmax(0,44fr) minmax(0,56fr);min-height:100vh;min-height:100dvh;background:#f4f6f9;font-family:Inter,"Segoe UI",sans-serif}
+.gate-brand{display:grid;align-items:center;padding:clamp(32px,5.5vw,96px);color:white;background:linear-gradient(140deg,#183c68,#133463 55%,#102a4c)}
+.gate-logo{display:block;width:200px;height:auto;margin-bottom:42px}
+.gate-title{border-left:3px solid #f26f21;padding-left:19px}
+.gate-title h1{font-size:clamp(28px,2.8vw,44px);line-height:1.14;letter-spacing:-.035em;font-weight:700;margin:0;color:white}
+.gate-title p{color:#d7e2ed;font-size:15px;line-height:1.5;margin:10px 0 0}
+.gate-access{display:grid;place-items:center;padding:clamp(24px,4vw,60px)}
+.gate-card{width:min(100%,410px);border-radius:16px;background:#fff;box-shadow:0 12px 38px #102a4c12;overflow:hidden}
+.gate-tabs{display:flex;border-bottom:1px solid #e1e6ec}
+.gate-tabs button{flex:1;border:0;border-bottom:3px solid transparent;background:#fff;padding:18px 12px 15px;color:#566779;font-weight:600}
+.gate-tabs button[aria-selected="true"]{border-color:#f26f21;color:#133463}
+.gate-tabs button:hover,.gate-password button:hover{background:#f4f6f9}
+#gateForm{padding:clamp(22px,3vw,32px);margin:0}
+#gateForm label{display:block;font-size:13px;font-weight:600;color:#34495e}
+#gateForm input{display:block;width:100%;height:44px;margin:7px 0 18px;padding:0 13px;border:1px solid #bac7d4;border-radius:8px;background:#fff;font:inherit;font-size:16px;font-weight:400;color:#18364f}
+#gateForm input::placeholder{color:#65778a}
+#authGate :focus-visible{outline:2px solid #245892;outline-offset:2px}
+.gate-tabs button:focus-visible{outline-offset:-5px!important}
+.gate-password{position:relative}
+.gate-password #authSenha{padding-right:48px}
+.gate-password button{display:grid;place-items:center;position:absolute;inset:1px 1px 1px auto;width:42px;border:0;border-radius:0 7px 7px 0;background:white;color:#455f77}
+.gate-password svg{width:19px;height:19px}
+#gateEnviar{width:100%;background:#14468c;border:0;border-radius:8px;color:white;min-height:44px;font-weight:600}
+#gateEnviar:hover{background:#103972}
+#authStatus:not(:empty){padding:10px 12px;margin:0 0 16px;border-radius:8px;font-size:13px;line-height:1.5;background:#eef4fb;color:#244863}
+#authStatus[data-erro="true"]:not(:empty){background:#fff1ef;color:#8a352d}
+#gateCarregando,#gateConexao{text-align:center;font-size:12px;color:#526478}
+#gateCarregando{padding:28px}
+#gateConexao{padding:12px 16px;background:#fafbfc;border-top:1px solid #e6ebf0}
+#gateConexao::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#78889a;vertical-align:1px}
+#gateConexao[data-estado="online"]{color:#21664e}
+#gateConexao[data-estado="online"]::before{background:#21805d}
+#gateConexao[data-estado="falha"]::before{background:#ae651d}
+@media(max-width:720px){
+  #authGate{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .gate-brand{padding:30px max(24px,calc((100vw - 410px)/2))}
+  .gate-logo{width:140px;margin-bottom:19px}
+  .gate-title{padding-left:14px}
+  .gate-title p{margin-top:6px;font-size:14px}
+  .gate-access{padding:24px 18px}
+}
+
 .author-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:5px;background:#eef4fb;color:#1b4973;font-weight:600;font-size:11px}
 @media(max-width:1100px){.torque-instrument{grid-template-columns:repeat(2,minmax(160px,1fr))}}
-@media(max-width:950px){.sidebar{width:180px}.torque-grid{grid-template-columns:repeat(2,1fr)}main{margin-left:180px;width:calc(100% - 180px);padding:18px}.conta-stats{grid-template-columns:1fr}}
+@media(max-width:950px){.sidebar{width:180px}.torque-grid{grid-template-columns:repeat(2,1fr)}main{margin-left:180px;width:calc(100% - 180px);padding:18px}}
 @media print{@page{size:A4 landscape;margin:8mm}body>*{display:none!important}body>dialog[open]{display:block!important;position:static;max-width:none;width:auto;border:0;padding:0}#preview>*:not(#folha){display:none!important}#folha{padding:0;background:white;overflow:visible}.report{width:100%;padding:0;break-inside:avoid}.report+.report{break-before:page;margin-top:0}.report table{font-size:9px}.report .report-items td{height:21px}}
 </style>
 </head>
 <body>
-<div class="app-shell">
+<section id="authGate" aria-labelledby="gateTitulo">
+  <div class="gate-brand">
+    <div>
+      <svg class="gate-logo" viewBox="0 0 210 68" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="elecnor QC">
+        <path d="M4 25.5C38 9 94 2 134 11.5C146 14.3 148.5 21 141.5 25.5C153 26.5 178 24 202 15.5C180 28.5 149 34.5 133.5 30.8C125.5 28.8 128 22.8 134 19.2C102 12.2 46 15.2 4 25.5Z" fill="#f26f21"/>
+        <text x="4" y="59" fill="#fff" font-family="system-ui,sans-serif" font-size="40" font-weight="700" letter-spacing="-1.2">elecnor</text>
+        <rect x="160" y="31" width="44" height="28" rx="7" fill="#f26f21" fill-opacity=".12" stroke="#f26f21" stroke-width="1.6"/>
+        <text x="182" y="50" text-anchor="middle" fill="#ffa464" font-family="system-ui,sans-serif" font-size="14" font-weight="700">QC</text>
+      </svg>
+      <div class="gate-title">
+        <h1 id="gateTitulo">Controle de Torque</h1>
+        <p>Projeto Azulão 950 MW · ENEVA S.A.</p>
+      </div>
+    </div>
+  </div>
+  <div class="gate-access">
+    <div class="gate-card">
+      <p id="gateCarregando" role="status">Verificando sessão…</p>
+      <div id="gateConteudo" hidden>
+        <div class="gate-tabs" role="tablist" aria-label="Conta">
+          <button type="button" role="tab" id="tabEntrar" aria-selected="true" aria-controls="gatePainel">Entrar</button>
+          <button type="button" role="tab" id="tabCadastrar" aria-selected="false" aria-controls="gatePainel" tabindex="-1">Criar conta</button>
+        </div>
+        <div id="gatePainel" role="tabpanel" aria-labelledby="tabEntrar">
+          <form id="gateForm">
+            <label id="campoNome" hidden>Nome completo
+              <input id="authNome" name="name" autocomplete="name" disabled>
+            </label>
+            <label>E-mail corporativo
+              <input id="authEmail" name="email" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="nome@elecnor.com.br" required>
+            </label>
+            <label for="authSenha" id="rotuloSenha">Senha</label>
+            <div class="gate-password">
+              <input id="authSenha" name="password" type="password" autocomplete="current-password" required>
+              <button type="button" id="verSenha" aria-label="Mostrar senha" title="Mostrar senha">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>
+                  <path id="riscoOlho" d="m3 3 18 18" style="display:none"/>
+                </svg>
+              </button>
+            </div>
+            <p id="authStatus" role="status"></p>
+            <button id="gateEnviar" type="submit">Entrar</button>
+          </form>
+        </div>
+        <div id="gateConexao" role="status" data-estado="aguarde">Verificando conexão…</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="app-shell" id="appShell" hidden>
   <aside class="sidebar">
     <div class="torque-brand">elecnor<span>brasil</span></div>
     <h3>QUALIDADE ELECNOR</h3>
@@ -354,85 +436,20 @@ textarea{width:100%;resize:vertical;min-height:90px;border:1px solid #d5e1e7;bor
     <article class="panel" id="painelConta" hidden>
       <div class="panel-head">
         <div>
-          <h2>Conta do Inspetor · Acesso ao Sistema</h2>
-          <p>Entre com seu e-mail corporativo para registrar sua autoria nas emissões e consultar os relatórios feitos por você.</p>
+          <h2>Conta do inspetor</h2>
         </div>
       </div>
-
-      <!-- Tela de Login / Cadastro quando desconectado -->
-      <div id="contaDeslogada" class="auth-box">
-        <h3>Entrar no Sistema de Torque</h3>
-        <p>Use seu e-mail da Elecnor (ex.: <code>nome@elecnor.com.br</code> ou <code>@elecnor.es</code>) e crie uma senha.</p>
-        <label>Seu nome completo (usado no primeiro cadastro)
-          <input id="authNome" type="text" placeholder="Ex.: Rani Gois">
-        </label>
-        <label>E-mail corporativo
-          <input id="authEmail" type="email" placeholder="seu.nome@elecnor.com.br" required>
-        </label>
-        <label>Senha (mínimo 6 caracteres)
-          <input id="authSenha" type="password" placeholder="••••••" required>
-        </label>
-        <p id="authStatus" role="status" style="color:#be4d4b;font-weight:600;"></p>
-        <div class="auth-actions">
-          <button type="button" id="btnEntrar" class="button primary">Entrar</button>
-          <button type="button" id="btnCriarConta" class="button secondary">Criar minha conta</button>
-        </div>
-      </div>
-
-      <!-- Painel da Conta quando logado -->
-      <div id="contaLogada" hidden>
         <div class="conta-card">
           <div class="conta-info">
             <div id="contaAvatar" class="conta-avatar">EQ</div>
             <div>
               <h3 id="contaNome">Inspetor</h3>
               <p id="contaEmail">email@elecnor.com.br</p>
-              <p style="margin-top:4px;color:#168b73;font-weight:600;">● Conectado à nuvem da Qualidade</p>
             </div>
           </div>
           <button type="button" id="btnSairConta" class="button danger">Sair da conta</button>
         </div>
 
-        <div class="conta-stats">
-          <div class="conta-stat">
-            <span>TOTAL EMITIDO POR VOCÊ</span>
-            <strong id="statTotalUsuario">0</strong>
-          </div>
-          <div class="conta-stat">
-            <span>TUBULAÇÃO (SEUS)</span>
-            <strong id="statTubUsuario">0</strong>
-          </div>
-          <div class="conta-stat">
-            <span>MECÂNICA (SEUS)</span>
-            <strong id="statMecUsuario">0</strong>
-          </div>
-        </div>
-
-        <div class="torque-tools" style="padding-left:0;">
-          <h3>Meus relatórios emitidos</h3>
-          <select id="filtroContaModalidade">
-            <option value="TODOS">Todas as modalidades</option>
-            <option value="TUBULACAO">Apenas Tubulação</option>
-            <option value="MECANICA">Apenas Mecânica</option>
-          </select>
-        </div>
-
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Nº ENEVA</th>
-                <th>PASTA Nº</th>
-                <th>MODALIDADE</th>
-                <th>DATA INSPEÇÃO</th>
-                <th>STATUS</th>
-                <th>OBSERVAÇÃO</th>
-              </tr>
-            </thead>
-            <tbody id="listaMeusRelatorios"></tbody>
-          </table>
-        </div>
-      </div>
     </article>
 
     <!-- MODAIS -->
@@ -493,7 +510,93 @@ const BASE_TORQUE = {"logoEneva":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA
 /* === CONEXÃO SUPABASE (Projeto de rani.gois@elecnor.es) === */
 const SUPABASE_URL = "https://smkjwcuebxbgjzjhnhic.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_AfkoyCp4bhYm9MTcEYaGZg_QXUiJa2s";
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let sb = null;
+
+async function carregarSdkSupabase() {
+  const pacote = '@supabase/supabase-js@2.119.2/dist/umd/supabase.js';
+  for (const base of ['https://cdn.jsdelivr.net/npm/', 'https://unpkg.com/']) {
+    const carregado = await new Promise(resolve => {
+      const script = document.createElement('script');
+      function concluir(ok) {
+        clearTimeout(limite);
+        script.onload = script.onerror = null;
+        script.remove();
+        resolve(ok);
+      }
+      const limite = setTimeout(() => concluir(false), 8000);
+      script.onload = () => concluir(typeof window.supabase?.createClient === 'function');
+      script.onerror = () => concluir(false);
+      script.crossOrigin = 'anonymous';
+      script.integrity = 'sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ';
+      script.src = base + pacote;
+      document.head.append(script);
+    });
+    if (carregado) return;
+  }
+  throw Object.assign(new Error(), { code: 'cdn_indisponivel' });
+}
+
+let ultimaSondagem = 0;
+async function diagnosticarAuth() {
+  const ordem = ++ultimaSondagem;
+  let online = false;
+  const controle = new AbortController();
+  const limite = setTimeout(() => controle.abort(), 6000);
+  try {
+    const resposta = await fetch(SUPABASE_URL + '/auth/v1/health', {
+      headers: { apikey: SUPABASE_ANON_KEY }, cache: 'no-store',
+      credentials: 'omit', redirect: 'error', signal: controle.signal
+    });
+    if (resposta.status === 401 || resposta.status === 403) return 'O teste de saúde recebeu HTTP ' + resposta.status + '. Confira a chave publicável e as restrições de acesso ao projeto.';
+    if (resposta.status === 404) return 'O endereço do serviço de autenticação não foi encontrado (HTTP 404). Confira a URL do projeto no Supabase.';
+    if (resposta.status >= 500) return 'O serviço de autenticação está indisponível (HTTP ' + resposta.status + '). Verifique no painel se o projeto está ativo e tente novamente.';
+    if (!resposta.ok) return 'O teste de saúde recebeu HTTP ' + resposta.status + '. Confira o estado do projeto e tente novamente.';
+    const saude = await resposta.json().catch(() => null);
+    if (!saude?.version) return 'O endereço respondeu sem os dados de saúde do Supabase. Verifique a URL e se há uma página de bloqueio ou de acesso à rede.';
+    online = true;
+    return 'O serviço de autenticação respondeu ao teste de saúde. A falha pode ser intermitente ou específica do envio (POST/CORS). Confira sua caixa de entrada antes de repetir um cadastro. Se persistir, teste em outra rede ou peça à TI para verificar o proxy.';
+  } catch {
+    if (navigator.onLine === false) return 'O navegador está sem conexão. Reconecte-se e tente novamente.';
+    return 'O navegador também não conseguiu consultar a saúde do Supabase. Verifique a URL, o DNS, o firewall/proxy e as regras de CORS da rede. Confira no painel se o projeto está ativo.';
+  } finally {
+    clearTimeout(limite);
+    if (ordem === ultimaSondagem) {
+      const indicador = document.getElementById('gateConexao');
+      indicador.dataset.estado = online ? 'online' : 'falha';
+      indicador.textContent = online ? 'Online' : 'Conexão indisponível';
+    }
+  }
+}
+window.addEventListener('online', () => { if (!document.getElementById('authGate').hidden) diagnosticarAuth(); });
+window.addEventListener('offline', () => {
+  ++ultimaSondagem;
+  const indicador = document.getElementById('gateConexao');
+  indicador.dataset.estado = 'falha';
+  indicador.textContent = 'Sem conexão';
+});
+
+async function mensagemAuth(erro) {
+  const status = erro?.status;
+  const motivo = erro?.message || '';
+  if (erro?.code === 'cdn_indisponivel') return 'Falha ao carregar a biblioteca de autenticação. Verifique o acesso a cdn.jsdelivr.net ou unpkg.com e tente novamente.';
+  if (erro?.name === 'AuthRetryableFetchError' || /fetch|network|load failed|timeout|aborted/i.test(motivo)) return diagnosticarAuth();
+  if (/api.?key|publishable key/i.test(motivo)) return 'O Supabase recusou a chave. Confira se a URL e a chave publicável pertencem ao mesmo projeto.';
+  if (erro?.code === 'invalid_credentials') return 'E-mail ou senha incorretos.';
+  if (erro?.code === 'email_not_confirmed') return 'Confirme o e-mail de cadastro antes de entrar.';
+  if (erro?.code === 'weak_password') return 'A senha não atende às regras do projeto. Escolha uma senha mais forte.';
+  if (erro?.code === 'user_already_exists') return 'Já existe uma conta com este e-mail. Use o botão Entrar.';
+  if (erro?.code === 'signup_disabled') return 'O cadastro está desabilitado neste projeto. Contate o administrador.';
+  if (status === 429) return 'O limite de tentativas foi atingido. Aguarde antes de tentar novamente.';
+  if (status === 401 || status === 403) return 'O Supabase recusou o acesso. Confira suas credenciais e a configuração de autenticação do projeto.';
+  return 'Não foi possível concluir a autenticação' + (status ? ' (HTTP ' + status + ')' : '') + '. Confira os dados da conta e a configuração do projeto.';
+}
+
+function mensagemNuvem(erro) {
+  if (erro.code === 'PGRST303' || /jwt expired|refresh token/i.test(erro.message || '')) {
+    return 'Sessão expirada. Abra a aba Conta e entre novamente. Se a conta ainda aparecer conectada, clique em Sair da conta.';
+  }
+  return erro.message || 'Não foi possível acessar a nuvem.';
+}
 
 /* === SANEAMENTO DOS CADASTROS E VALIDADE DINÂMICA DOS TORQUÍMETROS === */
 const TorqueSaneamento = (() => {
@@ -605,6 +708,7 @@ const labels={data:'Data da inspeção',pasta:'Pasta nº',desenho:'Desenho de re
 const RASCUNHOS_KEY = 'torque_rascunhos_locais_v1';
 
 let usuarioAtual = null;
+let conexaoPendente = null, leituraEmitidos = 0;
 let documento={},documentosDisciplina={},linhasPasta=[],sujo=false,ultimoDesenhoAutomatico='';
 let emitidos=[],pastasOrganizacao=[],disciplinaInterface='TUBULACAO',disciplinaEmitidos='TUBULACAO',emitindo=false;
 
@@ -648,97 +752,195 @@ function prefixoEnevaMecanica(desenho){
 }
 
 /* === AUTENTICAÇÃO E CONTA SUPABASE === */
-function atualizarUIUsuario() {
-  const dot = $('sidebarDot'), txt = $('sidebarUserText');
-  if (usuarioAtual) {
+let cadastro = false, verificandoSessao = true, sessaoRecebida;
+let timerValidade, saidaEmCurso = false;
+const chaveSaida = 'torque_saida_pendente_' + new URL(SUPABASE_URL).hostname;
+let saidaPendente = false;
+try { saidaPendente = sessionStorage.getItem(chaveSaida) === '1'; } catch {}
+function marcarSaida(pendente) {
+  saidaPendente = pendente;
+  try {
+    if (pendente) sessionStorage.setItem(chaveSaida, '1');
+    else sessionStorage.removeItem(chaveSaida);
+  } catch {}
+}
+function avisoAuth(texto, erro = false) {
+  $('authStatus').dataset.erro = String(erro);
+  $('authStatus').textContent = texto;
+}
+function mostrarSenha(visivel) {
+  $('authSenha').type = visivel ? 'text' : 'password';
+  const acao = visivel ? 'Ocultar senha' : 'Mostrar senha';
+  $('verSenha').setAttribute('aria-label', acao);
+  $('verSenha').title = acao;
+  $('riscoOlho').style.display = visivel ? '' : 'none';
+}
+function modoAcesso(criar) {
+  cadastro = criar;
+  const ativa = criar ? 'tabCadastrar' : 'tabEntrar';
+  for (const id of ['tabEntrar', 'tabCadastrar']) {
+    $(id).setAttribute('aria-selected', String(id === ativa));
+    $(id).tabIndex = id === ativa ? 0 : -1;
+  }
+  $('gatePainel').setAttribute('aria-labelledby', ativa);
+  $('campoNome').hidden = !criar;
+  $('authNome').disabled = !criar;
+  $('authNome').required = criar;
+  $('rotuloSenha').textContent = criar ? 'Senha (mínimo 6 caracteres)' : 'Senha';
+  $('authSenha').minLength = criar ? 6 : 0;
+  $('authSenha').autocomplete = criar ? 'new-password' : 'current-password';
+  $('authSenha').value = '';
+  mostrarSenha(false);
+  $('gateEnviar').textContent = criar ? 'Criar conta' : 'Entrar';
+  avisoAuth('');
+}
+$('tabEntrar').onclick = () => { if (cadastro) modoAcesso(false); };
+$('tabCadastrar').onclick = () => { if (!cadastro) modoAcesso(true); };
+document.querySelector('.gate-tabs').onkeydown = e => {
+  if (!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return;
+  e.preventDefault();
+  const aba = e.key === 'Home' ? $('tabEntrar') : e.key === 'End' ? $('tabCadastrar') : $(cadastro ? 'tabEntrar' : 'tabCadastrar');
+  aba.click();
+  aba.focus();
+};
+$('verSenha').onclick = () => mostrarSenha($('authSenha').type === 'password');
+
+function aplicarSessao(session) {
+  clearTimeout(timerValidade);
+  const anterior = usuarioAtual?.id;
+  const restante = session?.expires_at * 1000 - Date.now();
+  usuarioAtual = !saidaPendente && restante > 0 ? session.user : null;
+  const conectado = Boolean(usuarioAtual);
+  $('appShell').hidden = !conectado;
+  $('authGate').hidden = conectado;
+  if (conectado) {
+    // O SDK agenda a renovação. O limite local também fecha a tela se a rede cair.
+    timerValidade = setTimeout(() => aplicarSessao(session), Math.min(restante, 2147483647));
     const nome = usuarioAtual.user_metadata?.nome || usuarioAtual.email.split('@')[0];
-    dot.classList.remove('offline');
-    txt.textContent = nome;
-    $('contaDeslogada').hidden = true;
-    $('contaLogada').hidden = false;
-    $('contaNome').textContent = nome;
+    $('sidebarDot').classList.remove('offline');
+    $('sidebarUserText').textContent = $('contaNome').textContent = nome;
     $('contaEmail').textContent = usuarioAtual.email;
     $('contaAvatar').textContent = nome.slice(0, 2).toUpperCase();
     $('avisoLoginTopo').innerHTML = `Conectado como <strong>${esc(nome)}</strong> (${esc(usuarioAtual.email)}). Toda emissão grava sua autoria na nuvem e baixa o arquivo no seu computador.`;
-    renderMeusRelatorios();
-  } else {
-    dot.classList.add('offline');
-    txt.textContent = 'Entrar na conta';
-    $('contaDeslogada').hidden = false;
-    $('contaLogada').hidden = true;
-    $('avisoLoginTopo').innerHTML = `<strong>Atenção:</strong> Você ainda não entrou na sua conta. Clique em <strong>👤 Conta</strong> no menu ao lado para entrar com seu e-mail corporativo antes de emitir.`;
   }
+  if (anterior === usuarioAtual?.id) return;
+  ++leituraEmitidos;
+  emitidos = [];
+  pastasOrganizacao = [];
+  $('pastaFiltroEmitidos').options.length = 2;
+  $('pastaFiltroEmitidos').selectedIndex = 0;
+  document.dispatchEvent(new CustomEvent('torque:todos-emitidos', { detail: [] }));
+  document.querySelectorAll('dialog[open]').forEach(dialogo => dialogo.close());
+  $('gateForm').reset();
+  modoAcesso(false);
+  if (conectado) {
+    $('verRelatorio').click();
+    disciplinaEmitidos = 'TUBULACAO';
+    $('disciplinaEmitidos').value = disciplinaEmitidos;
+    $('verRelatorio').focus({ preventScroll: true });
+    // O SDK libera a sessão após o callback de autenticação.
+    setTimeout(carregarEmitidos, 0);
+  } else {
+    $('authEmail').focus({ preventScroll: true });
+    avisoAuth('Sessão encerrada. Entre novamente.');
+    if (!saidaEmCurso) diagnosticarAuth();
+  }
+  renderEmitidos();
+}
+
+
+function conectarSupabase() {
+  if (sb) return Promise.resolve(sb);
+  if (!conexaoPendente) {
+    conexaoPendente = carregarSdkSupabase().then(() => {
+      const cliente = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { fetch: (url, opcoes = {}) => {
+          if (String(url).startsWith(SUPABASE_URL + '/auth/v1/') && !opcoes.signal && AbortSignal.timeout) {
+            return fetch(url, { ...opcoes, signal: AbortSignal.timeout(15000) });
+          }
+          return fetch(url, opcoes);
+        } }
+      });
+      cliente.auth.onAuthStateChange((_evento, sessao) => {
+        if (verificandoSessao) sessaoRecebida = sessao;
+        else aplicarSessao(sessao);
+      });
+      sb = cliente;
+      return cliente;
+    }).finally(() => { conexaoPendente = null; });
+  }
+  return conexaoPendente;
 }
 
 async function verificarSessao() {
-  const { data } = await sb.auth.getSession();
-  usuarioAtual = data?.session?.user || null;
-  atualizarUIUsuario();
-  if (usuarioAtual) await carregarEmitidos();
+  diagnosticarAuth();
+  let sessao = null;
+  try {
+    const cliente = await conectarSupabase();
+    const { data, error } = await cliente.auth.getSession();
+    if (error) throw error;
+    sessao = data.session;
+  } catch (erro) {
+    sessaoRecebida = null;
+    avisoAuth(await mensagemAuth(erro), true);
+  } finally {
+    verificandoSessao = false;
+    aplicarSessao(sessaoRecebida === undefined ? sessao : sessaoRecebida);
+    sessaoRecebida = undefined;
+    $('gateCarregando').hidden = true;
+    $('gateConteudo').hidden = false;
+  }
 }
 
-sb.auth.onAuthStateChange((_event, session) => {
-  usuarioAtual = session?.user || null;
-  atualizarUIUsuario();
-});
-
-$('btnEntrar').onclick = async () => {
-  const email = $('authEmail').value.trim();
+$('gateForm').onsubmit = async evento => {
+  evento.preventDefault();
+  if (verificandoSessao || saidaEmCurso || $('gateEnviar').disabled) return;
+  const nome = $('authNome').value.trim(), email = $('authEmail').value.trim();
   const password = $('authSenha').value;
-  $('authStatus').textContent = 'Entrando…';
-  const { error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) { $('authStatus').textContent = 'Erro ao entrar: ' + error.message; return; }
-  $('authStatus').textContent = '';
-  await carregarEmitidos();
-};
-
-$('btnCriarConta').onclick = async () => {
-  const nome = $('authNome').value.trim();
-  const email = $('authEmail').value.trim();
-  const password = $('authSenha').value;
-  if (!nome) { $('authStatus').textContent = 'Informe seu nome completo para registrar nos relatórios.'; return; }
-  if (!email || password.length < 6) { $('authStatus').textContent = 'Informe um e-mail válido e senha com pelo menos 6 caracteres.'; return; }
-  $('authStatus').textContent = 'Criando conta…';
-  const { error } = await sb.auth.signUp({ email, password, options: { data: { nome } } });
-  if (error) { $('authStatus').textContent = 'Erro ao cadastrar: ' + error.message; return; }
-  $('authStatus').textContent = '';
-  await carregarEmitidos();
+  if (cadastro && !nome) { avisoAuth('Informe seu nome completo.', true); $('authNome').focus(); return; }
+  const criar = cadastro;
+  $('gateEnviar').disabled = $('tabEntrar').disabled = $('tabCadastrar').disabled = true;
+  avisoAuth(criar ? 'Criando conta…' : 'Entrando…');
+  try {
+    const cliente = await conectarSupabase();
+    const { data, error } = criar
+      ? await cliente.auth.signUp({ email, password, options: { data: { nome } } })
+      : await cliente.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (data.session) {
+      marcarSaida(false);
+      aplicarSessao(data.session);
+    } else {
+      modoAcesso(false);
+      avisoAuth('Confira seu e-mail para confirmar o cadastro. Depois, use o botão Entrar.');
+    }
+  } catch (erro) {
+    avisoAuth((criar ? 'Erro ao cadastrar. ' : 'Erro ao entrar. ') + await mensagemAuth(erro), true);
+  } finally {
+    $('gateEnviar').disabled = $('tabEntrar').disabled = $('tabCadastrar').disabled = false;
+  }
 };
 
 $('btnSairConta').onclick = async () => {
-  await sb.auth.signOut();
-  usuarioAtual = null;
-  atualizarUIUsuario();
+  saidaEmCurso = true;
+  marcarSaida(true);
+  aplicarSessao(null);
+  $('gateEnviar').disabled = true;
+  avisoAuth('Saindo da conta…');
+  try {
+    const { error } = await sb.auth.signOut();
+    if (error) throw error;
+    marcarSaida(false);
+    avisoAuth('');
+    diagnosticarAuth();
+  } catch (erro) {
+    avisoAuth('Acesso bloqueado neste navegador. Falha ao confirmar a saída no servidor. ' + await mensagemAuth(erro), true);
+  } finally {
+    saidaEmCurso = false;
+    $('gateEnviar').disabled = false;
+  }
 };
 
-function renderMeusRelatorios() {
-  if (!usuarioAtual) return;
-  const filtro = $('filtroContaModalidade').value;
-  const meus = emitidos.filter(r => r.autor_email === usuarioAtual.email);
-  const tubCount = meus.filter(r => r.escopo === 'TUB' && r.status !== 'EXCLUÍDO').length;
-  const mecCount = meus.filter(r => r.escopo !== 'TUB' && r.status !== 'EXCLUÍDO').length;
-  $('statTotalUsuario').textContent = tubCount + mecCount;
-  $('statTubUsuario').textContent = tubCount;
-  $('statMecUsuario').textContent = mecCount;
-
-  const filtrados = meus.filter(r => {
-    if (filtro === 'TUBULACAO') return r.escopo === 'TUB';
-    if (filtro === 'MECANICA') return r.escopo !== 'TUB';
-    return true;
-  });
-
-  $('listaMeusRelatorios').innerHTML = filtrados.map(r => `
-    <tr>
-      <td><strong>${esc(r.codigo)}</strong></td>
-      <td>${esc(r.pasta)}</td>
-      <td>${r.escopo === 'TUB' ? 'Tubulação' : esc(r.escopo)}</td>
-      <td>${esc(r.data)}</td>
-      <td><span class="pill ${r.status === 'EXCLUÍDO' ? 'document' : 'approved'}">${esc(r.status)}</span></td>
-      <td>${esc(r.observacao || '—')}</td>
-    </tr>
-  `).join('') || '<tr><td colspan="6">Nenhum relatório emitido por esta conta ainda.</td></tr>';
-}
-$('filtroContaModalidade').onchange = renderMeusRelatorios;
 
 /* === MONTAGEM DO CAMPO Nº ENEVA DE MECÂNICA (PREFIXO DINÂMICO + BOTÃO SUTIL) === */
 document.addEventListener('torque:modo', e => {
@@ -1118,11 +1320,16 @@ $('confirmarEmitir').onclick = async () => {
   $('statusEmissao').textContent = 'Reservando sequência na nuvem e registrando emissão…';
 
   try {
+    const fmt = $('formatoEmissao').value;
+    if ((fmt === 'excel' || fmt === 'ambos') && !window.XLSX) {
+      throw Error('A biblioteca do Excel ainda não carregou. Verifique a conexão antes de emitir ou selecione apenas PDF.');
+    }
     const d = coletar();
     { const bloqueio = validarMecanicaNaoTubulacao(d); if (bloqueio) throw Error(bloqueio); }
     const escopo = d.disciplina === 'MECANICA' ? ('MEC-' + (d.aba_mecanica || 'EST')) : 'TUB';
     const nomeAutor = usuarioAtual.user_metadata?.nome || usuarioAtual.email.split('@')[0];
 
+    const autorEmissao = usuarioAtual.id;
     const { data: reg, error } = await sb.rpc('emitir_relatorio_torque', {
       p_escopo: escopo,
       p_prefixo: d.prefixo_eneva,
@@ -1136,9 +1343,9 @@ $('confirmarEmitir').onclick = async () => {
       p_dados_json: d
     });
 
-    if (error) throw Error(error.message);
+    if (usuarioAtual?.id !== autorEmissao) return;
+    if (error) throw Error(mensagemNuvem(error));
 
-    const fmt = $('formatoEmissao').value;
     if (fmt === 'excel' || fmt === 'ambos') {
       baixarExcelLocal(d, reg.codigo);
     }
@@ -1146,7 +1353,7 @@ $('confirmarEmitir').onclick = async () => {
       $('folha').innerHTML = previa(d, reg.codigo);
       $('confirmarEmissao').close();
       $('preview').showModal();
-      setTimeout(() => window.print(), 300);
+      setTimeout(() => { if (usuarioAtual?.id === autorEmissao && $('preview').open) window.print(); }, 300);
     } else {
       $('confirmarEmissao').close();
     }
@@ -1179,14 +1386,24 @@ async function buscarTodosRelatorios() {
 }
 
 async function carregarEmitidos() {
-  if (!usuarioAtual) return;
+  if (!usuarioAtual) {
+    $('statusEmitidos').textContent = 'Entre na aba Conta para consultar os relatórios.';
+    return;
+  }
+  const leitura = ++leituraEmitidos;
   $('statusEmitidos').textContent = 'Sincronizando com a nuvem…';
-  const [resRel, resPastas] = await Promise.all([
-    buscarTodosRelatorios(),
-    sb.from('pastas_virtuais_torque').select('*').eq('disciplina', disciplinaEmitidos)
-  ]);
-
-  if (resRel.error) { $('statusEmitidos').textContent = 'Erro ao ler nuvem: ' + resRel.error.message; return; }
+  let resRel, resPastas;
+  try {
+    [resRel, resPastas] = await Promise.all([
+      buscarTodosRelatorios(),
+      sb.from('pastas_virtuais_torque').select('*').eq('disciplina', disciplinaEmitidos)
+    ]);
+    if (resRel.error || resPastas.error) throw resRel.error || resPastas.error;
+  } catch (erro) {
+    if (leitura === leituraEmitidos) $('statusEmitidos').textContent = 'Erro ao ler a nuvem. ' + mensagemNuvem(erro);
+    return;
+  }
+  if (leitura !== leituraEmitidos) return;
   pastasOrganizacao = resPastas.data || [];
   emitidos = (resRel.data || []).map(r => ({
     id: r.id,
@@ -1211,7 +1428,6 @@ async function carregarEmitidos() {
 
   document.dispatchEvent(new CustomEvent('torque:todos-emitidos', { detail: emitidos }));
   renderEmitidos();
-  renderMeusRelatorios();
 }
 
 function renderEmitidos() {
@@ -1244,7 +1460,9 @@ function renderEmitidos() {
     </tr>
   `).join('') || '<tr><td colspan="10">Nenhum relatório encontrado nesta modalidade e pasta.</td></tr>';
 
-  $('statusEmitidos').textContent = `${rows.length} de ${modality.length} registros na nuvem (${disciplinaEmitidos === 'MECANICA' ? 'Mecânica' : 'Tubulação'}).`;
+  $('statusEmitidos').textContent = usuarioAtual
+    ? `${rows.length} de ${modality.length} registros na nuvem (${disciplinaEmitidos === 'MECANICA' ? 'Mecânica' : 'Tubulação'}).`
+    : 'Entre na aba Conta para consultar os relatórios.';
   document.dispatchEvent(new CustomEvent('torque:emitidos', { detail: rows }));
 }
 
@@ -1269,9 +1487,11 @@ $('listaEmitidos').addEventListener('click', e => {
 $('disciplinaEmitidos').onchange = () => { disciplinaEmitidos = $('disciplinaEmitidos').value; $('pastaFiltroEmitidos').value = '__TODAS__'; carregarEmitidos(); };
 $('pastaFiltroEmitidos').onchange = renderEmitidos;
 $('criarPastaEmitidos').onclick = async () => {
+  if (!usuarioAtual) { $('verConta').click(); return; }
   const nome = $('novaPastaEmitidos').value.trim(); if (!nome) return;
   const id = 'p_' + Date.now();
-  await sb.from('pastas_virtuais_torque').insert({ id, disciplina: disciplinaEmitidos, nome });
+  const { error } = await sb.from('pastas_virtuais_torque').insert({ id, disciplina: disciplinaEmitidos, nome });
+  if (error) { $('statusEmitidos').textContent = mensagemNuvem(error); return; }
   $('novaPastaEmitidos').value = '';
   await carregarEmitidos();
 };
@@ -1310,7 +1530,6 @@ $('verEmitidos').onclick = () => {
 };
 $('verConta').onclick = () => {
   ativarAba('CONTA');
-  renderMeusRelatorios();
 };
 $('sidebarUserFoot').onclick = () => $('verConta').click();
 
@@ -1437,11 +1656,13 @@ verificarSessao();
     const hide = e.target.closest('[data-hide]');
     const exc = e.target.closest('[data-excluir]');
     if (org) {
-      await sb.from('relatorios_torque').update({ pasta_virtual_id: org.dataset.folderId }).eq('codigo', org.dataset.organize);
+      const { error } = await sb.from('relatorios_torque').update({ pasta_virtual_id: org.dataset.folderId }).eq('codigo', org.dataset.organize);
+      if (error) { $('statusEmitidos').textContent = mensagemNuvem(error); return; }
       document.dispatchEvent(new Event('torque:recarregar-controle'));
     }
     if (hide) {
-      await sb.from('relatorios_torque').update({ oculto_local: hide.dataset.hidden !== 'true' }).eq('codigo', hide.dataset.hide);
+      const { error } = await sb.from('relatorios_torque').update({ oculto_local: hide.dataset.hidden !== 'true' }).eq('codigo', hide.dataset.hide);
+      if (error) { $('statusEmitidos').textContent = mensagemNuvem(error); return; }
       document.dispatchEvent(new Event('torque:recarregar-controle'));
     }
     if (exc) {
@@ -1457,7 +1678,8 @@ verificarSessao();
   $('confirmarExcluir').onclick = async () => {
     if (!registroAlvo) return;
     $('statusExcluir').textContent = 'Excluindo na nuvem…';
-    await sb.from('relatorios_torque').update({ status: 'EXCLUÍDO' }).eq('id', registroAlvo.id);
+    const { error } = await sb.from('relatorios_torque').update({ status: 'EXCLUÍDO' }).eq('id', registroAlvo.id);
+    if (error) { $('statusExcluir').textContent = mensagemNuvem(error); return; }
     $('dialogoExcluir').close();
     document.dispatchEvent(new Event('torque:recarregar-controle'));
   };
