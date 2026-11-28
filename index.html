@@ -608,6 +608,7 @@ textarea{width:100%;resize:vertical;min-height:90px;border:1px solid #d5e1e7;bor
           <button class="button secondary" type="button" id="previa">Ver prévia</button>
           <button class="button secondary" type="button" id="salvarRascunho">Salvar rascunho</button>
           <button class="button primary" type="button" id="emitir">Emitir relatório</button>
+          <button class="button secondary" type="button" id="cancelarEdicao" hidden>Cancelar edição</button>
           <span id="mensagem" role="status"></span>
         </div>
       </form>
@@ -1108,7 +1109,7 @@ const RASCUNHOS_KEY = 'torque_rascunhos_locais_v1';
 let usuarioAtual = null;
 let conexaoPendente = null, leituraEmitidos = 0;
 let documento={},documentosDisciplina={},linhasPasta=[],sujo=false,ultimoDesenhoAutomatico='';
-let emitidos=[],pastasOrganizacao=[],disciplinaInterface='TUBULACAO',disciplinaEmitidos='TUBULACAO',emitindo=false;
+let emitidos=[],pastasOrganizacao=[],disciplinaInterface='TUBULACAO',disciplinaEmitidos='TUBULACAO',emitindo=false,registroEditando=null;
 
 const catalogo = BASE_TORQUE.instrumentos || [];
 const pastas = BASE_TORQUE.pastasCto || {};
@@ -1468,12 +1469,6 @@ document.addEventListener('focusout', e => {
 
 function mensagem(s){ $('mensagem').textContent = s; }
 
-/* A combinação 26-21-00-RTQ-QC-0000 é exclusiva de Tubulação. */
-function validarMecanicaNaoTubulacao(d){
-  if(d.disciplina==='MECANICA' && String(d.prefixo_eneva||'').trim()==='26-21-00-RTQ-QC-' && String(d.codigo_desenho||'').trim()==='0000')
-    return 'Em Mecânica não é permitido usar 26-21-00-RTQ-QC- com desenho 0000: essa combinação é exclusiva de Tubulação. Ajuste o Desenho de referência, o prefixo (✎ Editar) ou o código do desenho.';
-  return '';
-}
 
 function coletar(){
   const d={...documento,laudo:'',inspetor:'',qualidade:'',fiscalizacao:''};
@@ -1560,13 +1555,22 @@ function atualizarDesenhos(){
   ultimoDesenhoAutomatico=desenhoAutomatico;
 }
 
-function preencher(d){
+function definirModoEdicao(reg){
+  registroEditando = reg || null;
+  $('emitir').textContent = registroEditando ? 'Salvar alterações' : 'Emitir relatório';
+  $('cancelarEdicao').hidden = !registroEditando;
+  $('estadoRelatorio').textContent = registroEditando ? ('EDITANDO · ' + registroEditando.codigo) : 'NÃO EMITIDO';
+  $('estadoRelatorio').className = registroEditando ? 'pill approved' : 'pill document';
+}
+
+function preencher(d, editando=null){
   d={...d,pasta:TorqueDados.formatarPasta(d.pasta)};
   documento=d;ultimoDesenhoAutomatico='';
   $('cabecalho').innerHTML=Object.entries(labels).map(([k,label])=>`<label>${label}<input name="${k}" type="${k==='data'?'date':'text'}" value="${esc(d[k]||'')}" maxlength="500"></label>`).join('');
   $('relatorio').elements.observacoes.value=d.observacoes||'';
   renderItens();renderInstrumentos();$('cadastroPasta').hidden=true;atualizarOrigem();
-  $('emitir').disabled=false;$('estadoRelatorio').textContent='NÃO EMITIDO';
+  $('emitir').disabled=false;
+  definirModoEdicao(editando);
   sujo=false;documentosDisciplina[d.disciplina||'TUBULACAO']=d;
   document.dispatchEvent(new CustomEvent('torque:modo',{detail:{disciplina:d.disciplina||'TUBULACAO'}}));
 }
@@ -1637,6 +1641,7 @@ $('abrir').onclick=()=>{
   if(lista[idx]) { preencher(lista[idx]); mensagem('Rascunho carregado.'); }
 };
 $('novo').onclick=()=>{ preencher(vazio(disciplinaInterface, documento.aba_mecanica)); mensagem('Novo relatório.'); };
+$('cancelarEdicao').onclick=()=>{ preencher(vazio(disciplinaInterface, documento.aba_mecanica)); mensagem('Edição cancelada.'); };
 
 /* === GERAÇÃO DE EXCEL (.XLSX) E FOLHA DE PRÉVIA/PDF NO COMPUTADOR === */
 /* Células preenchíveis da área A1:CN37, aba RELATÓRIO 01 do modelo de Torque. */
@@ -1757,7 +1762,7 @@ function previaFolha(d, numeroFolha, totalFolhas, numeroOficial){
 }
 function instrumento(x){if(!x?.tag)return 'TAG: __________________ · CALIBRAÇÃO: __________\nCERTIFICADO: __________________ · RANGE: __________';return `TAG: ${esc(x.tag)} · CALIBRAÇÃO: ${esc(x.calibracao)}\nCERTIFICADO: ${esc(x.certificado)} · RANGE: ${esc(x.faixa)}`;}
 function previa(d, numeroOficial=null){const total=TorqueDados.totalFolhas(d.itens.length);return Array.from({length:total},(_,i)=>previaFolha({...d,itens:d.itens.slice(i*11,(i+1)*11)},i+1,total,numeroOficial)).join('');}
-$('previa').onclick=()=>{$('folha').innerHTML=previa(coletar());$('preview').showModal();};$('fechar').onclick=()=>$('preview').close();$('imprimir').onclick=()=>window.print();
+$('previa').onclick=()=>{$('folha').innerHTML=previa(coletar(), registroEditando?.codigo || null);$('preview').showModal();};$('fechar').onclick=()=>$('preview').close();$('imprimir').onclick=()=>window.print();
 window.addEventListener('beforeprint', () => {
   if ($('impressao').classList.contains('rtq-pronto') && usuarioAtual) return;
   const folhas = usuarioAtual && $('preview').open ? [...$('folha').children] : [];
@@ -1811,26 +1816,28 @@ $('emitir').onclick = () => {
   const mPasta = /^(\d+)([A-Z]*)$/i.exec(String(d.pasta || ''));
   if (!d.pasta || !/^\d+[A-Z]*$/i.test(d.pasta) || !mPasta || Number(mPasta[1]) <= 0) { mensagem('Informe um número de Pasta válido (ex.: 00202 ou 00202A) antes de emitir.'); return; }
   if (!d.data) { mensagem('Informe a Data da inspeção.'); return; }
-  if (d.disciplina === 'MECANICA') {
+  if (!registroEditando && d.disciplina === 'MECANICA') {
     if (!/^\d{4}$/.test(d.codigo_desenho)) { mensagem('Informe os 4 dígitos do desenho em Mecânica.'); return; }
     if (!/^\d{1,3}$/.test(d.sequencia_manual) || Number(d.sequencia_manual) < 1) { mensagem('Informe a sequência manual (001 a 999).'); return; }
-    { const bloqueio = validarMecanicaNaoTubulacao(d); if (bloqueio) { mensagem(bloqueio); return; } }
   }
 
-  const numeroPreview = d.disciplina === 'MECANICA'
-    ? `${d.prefixo_eneva}${d.codigo_desenho}-${String(Number(d.sequencia_manual)).padStart(3,'0')}`
-    : '26-21-00-RTQ-QC-0000-[Próximo livre na nuvem]';
+  const numeroPreview = registroEditando
+    ? registroEditando.codigo
+    : (d.disciplina === 'MECANICA'
+      ? `${d.prefixo_eneva}${d.codigo_desenho}-${String(Number(d.sequencia_manual)).padStart(3,'0')}`
+      : '26-21-00-RTQ-QC-0000-[Próximo livre na nuvem]');
 
   $('dadosEmissao').innerHTML = `
     <p><strong>Responsável (Login):</strong> ${esc(usuarioAtual.user_metadata?.nome || usuarioAtual.email)}</p>
-    <p><strong>Nº ENEVA previsto:</strong> ${esc(numeroPreview)}</p>
+    <p><strong>${registroEditando ? 'Nº ENEVA (mantido)' : 'Nº ENEVA previsto'}:</strong> ${esc(numeroPreview)}</p>
     <p><strong>Pasta nº:</strong> ${esc(d.pasta)} · <strong>Data:</strong> ${esc(d.data.split('-').reverse().join('/'))}</p>
     <table><thead><tr><th>Item / Linha / TAG</th><th>Torque req.</th><th>Torque apl.</th></tr></thead>
     <tbody>${d.itens.map(x=>`<tr><td>${esc(x.identificacao||'—')}</td><td>${esc(x.requerido||'—')}</td><td>${esc(x.aplicado||'—')}</td></tr>`).join('')}</tbody></table>
   `;
-  $('tituloEmissao').textContent = 'Conferir emissão online';
+  $('tituloEmissao').textContent = registroEditando ? 'Confirmar edição do relatório' : 'Conferir emissão online';
   $('statusEmissao').textContent = '';
   $('cancelarEmissao').textContent = 'Cancelar';
+  $('confirmarEmitir').textContent = registroEditando ? 'Salvar alterações' : 'Confirmar emissão';
   $('confirmarEmitir').hidden = false;
   $('excelEmitido').hidden = $('pdfEmitido').hidden = true;
   $('confirmarEmissao').showModal();
@@ -1843,15 +1850,44 @@ $('confirmarEmitir').onclick = async () => {
   if (emitindo || $('emitir').disabled || !usuarioAtual) return;
   emitindo = true;
   $('confirmarEmitir').disabled = true;
-  $('statusEmissao').textContent = 'Reservando sequência na nuvem e registrando emissão…';
+  $('statusEmissao').textContent = registroEditando
+    ? 'Salvando alterações do relatório na nuvem…'
+    : 'Reservando sequência na nuvem e registrando emissão…';
 
   try {
     const d = coletar();
-    { const bloqueio = validarMecanicaNaoTubulacao(d); if (bloqueio) throw Error(bloqueio); }
-    const escopo = d.disciplina === 'MECANICA' ? ('MEC-' + (d.aba_mecanica || 'EST')) : 'TUB';
+    const escopo = registroEditando?.escopo || (d.disciplina === 'MECANICA' ? ('MEC-' + (d.aba_mecanica || 'EST')) : 'TUB');
     const nomeAutor = usuarioAtual.user_metadata?.nome || usuarioAtual.email.split('@')[0];
-
     const autorEmissao = usuarioAtual.id;
+
+    if (registroEditando) {
+      const alvo = registroEditando;
+      const { error } = await sb.from('relatorios_torque').update({
+        pasta: d.pasta,
+        data_inspecao: d.data.split('-').reverse().join('/'),
+        observacao: (escopo !== 'TUB' ? `[${escopo}] ` : '') + (d.observacoes || ''),
+        desenho_referencia: d.desenho || '',
+        dados_json: d
+      }).eq('id', alvo.id);
+
+      if (usuarioAtual?.id !== autorEmissao) return;
+      if (error) throw Error(mensagemNuvem(error));
+
+      sujo = false;
+      const codigo = alvo.codigo;
+      registroParaBaixar = codigo ? { codigo, dados_json: d } : null;
+      $('estadoRelatorio').textContent = 'ATUALIZADO · ' + codigo;
+      $('tituloEmissao').textContent = 'Relatório atualizado';
+      $('dadosEmissao').textContent = codigo;
+      $('statusEmissao').textContent = '';
+      $('confirmarEmitir').hidden = true;
+      $('cancelarEmissao').textContent = 'Fechar';
+      $('excelEmitido').hidden = $('pdfEmitido').hidden = !codigo;
+      mensagem(`Relatório ${codigo} atualizado na nuvem.`);
+      carregarEmitidos();
+      return;
+    }
+
     const { data: reg, error } = await sb.rpc('emitir_relatorio_torque', {
       p_escopo: escopo,
       p_prefixo: d.prefixo_eneva,
@@ -2053,6 +2089,67 @@ document.addEventListener('torque:mechanica-carregar', e => {
 
 document.addEventListener('torque:recarregar-controle', carregarEmitidos);
 
+document.addEventListener('torque:editar-emitido', e => {
+  const r = e.detail;
+  if (!r) return;
+  const disc = r.escopo === 'TUB' ? 'TUBULACAO' : 'MECANICA';
+  let dados = r.dados_json || {};
+  if (typeof dados === 'string') {
+    try { dados = JSON.parse(dados) || {}; } catch { dados = {}; }
+  }
+  const abaMec = disc === 'MECANICA' ? (dados.aba_mecanica || (r.escopo === 'MEC-DIN' ? 'DIN' : 'EST')) : '';
+  const base = vazio(disc, abaMec);
+  const dataIso = (() => {
+    const s = String(dados.data || r.data || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : base.data;
+  })();
+  const obsLimpa = dados.observacoes !== undefined
+    ? dados.observacoes
+    : String(r.observacao || '').replace(/^\[MEC-(?:DIN|EST)\]\s*/i, '');
+  const pastaFmt = TorqueDados.formatarPasta(dados.pasta || r.pasta || '');
+  let mecTags = Array.isArray(dados.mecanica_tags) ? dados.mecanica_tags : [];
+  if (disc === 'MECANICA' && !mecTags.length && BASE_TORQUE.mecPastas?.[pastaFmt]?.fontes?.[abaMec]) {
+    mecTags = [...new Set((BASE_TORQUE.mecPastas[pastaFmt].fontes[abaMec].itens || []).map(i => i.tag || '').filter(Boolean))];
+  }
+  let prefMec = dados.prefixo_eneva_mec || dados.prefixo_eneva || base.prefixo_eneva_mec;
+  let codMec = dados.codigo_desenho_mec || dados.codigo_desenho || '';
+  let seqMec = dados.sequencia_eneva_mec || dados.sequencia_manual || '';
+  let prefManual = Boolean(dados.prefixo_manual_mec);
+  if (disc === 'MECANICA' && (!codMec || !seqMec) && r.codigo) {
+    const mCod = /^(.*-)(\d{4})-(\d{1,3})(?:-.*)?$/.exec(String(r.codigo));
+    if (mCod) {
+      prefMec = mCod[1];
+      codMec = mCod[2];
+      seqMec = mCod[3].padStart(3, '0');
+      prefManual = true;
+    }
+  }
+  const docEdit = {
+    ...base,
+    ...dados,
+    disciplina: disc,
+    aba_mecanica: abaMec,
+    pasta: pastaFmt,
+    data: dataIso,
+    desenho: dados.desenho || r.desenho || '',
+    observacoes: obsLimpa,
+    mecanica_tags: mecTags,
+    prefixo_eneva_mec: prefMec,
+    prefixo_manual_mec: prefManual,
+    codigo_desenho_mec: codMec,
+    sequencia_eneva_mec: seqMec,
+    itens: Array.isArray(dados.itens) && dados.itens.length ? dados.itens : base.itens,
+    instrumentos: Array.isArray(dados.instrumentos) && dados.instrumentos.length ? dados.instrumentos : base.instrumentos
+  };
+  disciplinaInterface = disc;
+  ativarAba(disc);
+  preencher(docEdit, { id: r.id, codigo: r.codigo, escopo: r.escopo });
+  mensagem(`Editando relatório ${r.codigo}. Faça os ajustes e clique em "Salvar alterações".`);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
 /* Inicialização */
 carregarListaRascunhos();
 preencher(vazio());
@@ -2142,7 +2239,7 @@ verificarSessao();
     const options = [
       {id: '__TODAS__', nome: 'Todas', count: available.length},
       {id: '__SEM_PASTA__', nome: 'Sem pasta', count: available.filter(r => !r.pasta_id).length},
-      {id: '__OCULTOS__', nome: 'Ocultos', count: hiddenCount},
+      ...(hiddenCount > 0 ? [{id: '__OCULTOS__', nome: 'Ocultos', count: hiddenCount}] : []),
       ...realFolders.map(o => ({id: o.value, nome: o.textContent, count: available.filter(r => r.pasta_id === o.value).length}))
     ];
     cards.innerHTML = options.map(o => `<button type="button" class="emitidos-folder-card ${$('pastaFiltroEmitidos').value === o.id ? 'active' : ''}" data-folder="${esc(o.id)}">${folder}<span><strong>${esc(o.nome)}</strong><small>${o.count} ${o.count === 1 ? 'relatório' : 'relatórios'}</small></span></button>`).join('') + `<button type="button" class="emitidos-new-folder" id="abrirNovaPasta">${folder}<strong>+ Nova pasta</strong></button>`;
@@ -2164,17 +2261,16 @@ verificarSessao();
 
   $('listaEmitidos').addEventListener('click', async e => {
     const org = e.target.closest('[data-organize]');
-    const hide = e.target.closest('[data-hide]');
+    const edit = e.target.closest('[data-editar]');
     const exc = e.target.closest('[data-excluir]');
     if (org) {
       const { error } = await sb.from('relatorios_torque').update({ pasta_virtual_id: org.dataset.folderId }).eq('codigo', org.dataset.organize);
       if (error) { $('statusEmitidos').textContent = mensagemNuvem(error); return; }
       document.dispatchEvent(new Event('torque:recarregar-controle'));
     }
-    if (hide) {
-      const { error } = await sb.from('relatorios_torque').update({ oculto_local: hide.dataset.hidden !== 'true' }).eq('codigo', hide.dataset.hide);
-      if (error) { $('statusEmitidos').textContent = mensagemNuvem(error); return; }
-      document.dispatchEvent(new Event('torque:recarregar-controle'));
+    if (edit) {
+      const reg = registros[Number(edit.dataset.editar)];
+      if (reg) document.dispatchEvent(new CustomEvent('torque:editar-emitido', { detail: reg }));
     }
     if (exc) {
       registroAlvo = registros[Number(exc.dataset.excluir)];
@@ -2241,7 +2337,7 @@ verificarSessao();
       }
       const td = document.createElement('td');
       if (!r.excluido) {
-        td.innerHTML = `<button type="button" class="button secondary" data-excluir="${idx}">Excluir</button> <button type="button" class="button secondary emitidos-hide" data-hide="${esc(r.codigo)}" data-hidden="${Boolean(r.oculto_local)}">${r.oculto_local ? 'Restaurar' : 'Ocultar'}</button>`;
+        td.innerHTML = `<button type="button" class="button secondary" data-excluir="${idx}">Excluir</button> <button type="button" class="button secondary" data-editar="${idx}">Editar</button>`;
       } else {
         td.textContent = 'Excluído';
       }
